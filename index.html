@@ -32,6 +32,34 @@
                 var(--bg);
         }
 
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            background: rgba(11, 16, 32, 0.72);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .topbar-inner {
+            width: min(860px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 10px 0;
+            display: grid;
+            gap: 6px;
+        }
+
+        .topbar-title {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .topbar-summary {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
         main {
             width: min(860px, calc(100% - 32px));
             margin: 32px auto 64px;
@@ -109,6 +137,17 @@
             background: white;
         }
 
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+            outline: none;
+            background: white;
+            resize: vertical;
+        }
+
         input:focus {
             border-color: rgba(37, 99, 235, 0.55);
             box-shadow: 0 0 0 4px var(--focus);
@@ -131,6 +170,18 @@
             cursor: pointer;
             color: white;
             background: linear-gradient(135deg, #2563eb, #4f46e5);
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background: rgba(15, 23, 42, 0.08);
+            color: var(--text);
+            border: 1px solid var(--border);
         }
 
         button:active {
@@ -168,6 +219,13 @@
 </head>
 
 <body>
+    <div class="topbar" role="region" aria-label="全体サマリ">
+        <div class="topbar-inner">
+            <div class="topbar-title">全体の収支（1枚300円）</div>
+            <div class="topbar-summary" id="overall-summary">未判定</div>
+        </div>
+    </div>
+
     <main>
         <header>
             <h1>年末ジャンボ 当落チェッカー</h1>
@@ -206,6 +264,16 @@
                     </div>
                     <p class="hint">全角数字や「22組」「146504番」のような入力でもOK（数字だけに自動整形します）。</p>
                     <button type="submit">当落を確認</button>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 8px 0;" />
+
+                    <h2 style="margin: 0; font-size: 14px;">セーブコード</h2>
+                    <p class="hint">入力履歴をコードにして保存/復元できます（このページ内のデータのみ）。</p>
+                    <div class="btn-row">
+                        <button id="export-code" type="button" class="btn-secondary">出力</button>
+                        <button id="import-code" type="button" class="btn-secondary">読み込み</button>
+                    </div>
+                    <textarea id="save-code" rows="4" placeholder="ここにセーブコードが表示されます / ここへ貼り付けて読み込み"></textarea>
                 </form>
             </section>
 

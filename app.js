@@ -28,6 +28,8 @@ const PRIZE_TABLE = Object.freeze({
     seventh: { label: "7等", amount: "300円", yen: 300, last1: [0] },
 });
 
+const TICKET_COST_YEN = 300;
+
 function normalizeDigits(value) {
     const halfWidth = String(value)
         .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
@@ -151,6 +153,18 @@ function formatYen(yen) {
     return `${Math.trunc(yen).toLocaleString("ja-JP")}円`;
 }
 
+function formatPercent(value) {
+    if (!Number.isFinite(value)) return "0%";
+    const fixed = value.toFixed(1);
+    const trimmed = fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed;
+    return `${trimmed}%`;
+}
+
+function calcRecoveryRatePercent(totalWinYen, totalCostYen) {
+    if (!totalCostYen) return 0;
+    return (totalWinYen / totalCostYen) * 100;
+}
+
 function clearPlaceholderOnce() {
     if (els.result.dataset.hasHistory !== "true") {
         els.result.textContent = "";
@@ -178,10 +192,167 @@ const els = {
     spanBefore: document.getElementById("span-before"),
     spanAfter: document.getElementById("span-after"),
     result: document.getElementById("result"),
+
+    overallSummary: document.getElementById("overall-summary"),
+    exportCode: document.getElementById("export-code"),
+    importCode: document.getElementById("import-code"),
+    saveCode: document.getElementById("save-code"),
+};
+
+const state = {
+    operations: [],
+    totals: {
+        checkedCount: 0,
+        hitCount: 0,
+        winYen: 0,
+        costYen: 0,
+    },
 };
 
 function setResult(text, extraClassName = "") {
     prependItems([{ text, className: extraClassName }]);
+}
+
+function updateOverallSummary() {
+    if (!els.overallSummary) return;
+
+    const totalWin = state.totals.winYen;
+    const totalCost = state.totals.costYen;
+    const profit = totalWin - totalCost;
+    const rr = calcRecoveryRatePercent(totalWin, totalCost);
+
+    els.overallSummary.textContent = `全${state.totals.checkedCount}枚 / 合計当せん金: ${formatYen(totalWin)} / 購入額: ${formatYen(totalCost)} / 収支: ${profit >= 0 ? "+" : "-"}${formatYen(Math.abs(profit))} / 回収率: ${formatPercent(rr)}`;
+}
+
+function resetTotals() {
+    state.totals.checkedCount = 0;
+    state.totals.hitCount = 0;
+    state.totals.winYen = 0;
+    state.totals.costYen = 0;
+}
+
+function applyOperationToTotals(op) {
+    const min = Math.max(0, op.number - op.spanBefore);
+    const max = Math.min(999999, op.number + op.spanAfter);
+    const checkedCount = max - min + 1;
+
+    let hitCount = 0;
+    let winYen = 0;
+    for (let num = min; num <= max; num += 1) {
+        const prize = checkPrize(op.group, num);
+        if (prize) {
+            hitCount += 1;
+            winYen += prize.yen ?? 0;
+        }
+    }
+
+    state.totals.checkedCount += checkedCount;
+    state.totals.hitCount += hitCount;
+    state.totals.winYen += winYen;
+    state.totals.costYen += TICKET_COST_YEN * checkedCount;
+}
+
+function buildOperationItems(op) {
+    const groupDigits = String(op.group);
+    const baseNumberDigits = pad6(op.number);
+
+    const min = Math.max(0, op.number - op.spanBefore);
+    const max = Math.min(999999, op.number + op.spanAfter);
+    const checkedCount = max - min + 1;
+
+    const items = [];
+    if (op.spanBefore || op.spanAfter) {
+        items.push({
+            text: `${groupDigits}組 ${baseNumberDigits}番 の連番チェック（前${op.spanBefore} / 後${op.spanAfter} / ${checkedCount}枚）`,
+            className: "batch",
+        });
+    }
+
+    let hitCount = 0;
+    let winYen = 0;
+    for (let num = min; num <= max; num += 1) {
+        const prize = checkPrize(op.group, num);
+        if (prize) {
+            hitCount += 1;
+            winYen += prize.yen ?? 0;
+        }
+        items.push({ text: formatResult({ groupDigits, numberDigits: pad6(num), prize }) });
+    }
+
+    const cost = TICKET_COST_YEN * checkedCount;
+    const profit = winYen - cost;
+    const rr = calcRecoveryRatePercent(winYen, cost);
+    items.push({
+        text: `当たり: ${hitCount}件 / 全${checkedCount}枚 / 合計当せん金: ${formatYen(winYen)} / 購入額: ${formatYen(cost)} / 収支: ${profit >= 0 ? "+" : "-"}${formatYen(Math.abs(profit))} / 回収率: ${formatPercent(rr)}`,
+        className: "summary",
+    });
+
+    return items;
+}
+
+function renderOperation(op) {
+    prependItems(buildOperationItems(op));
+    applyOperationToTotals(op);
+    updateOverallSummary();
+}
+
+function rerenderAll() {
+    els.result.textContent = "";
+    delete els.result.dataset.hasHistory;
+    resetTotals();
+
+    for (const op of state.operations) {
+        prependItems(buildOperationItems(op));
+        applyOperationToTotals(op);
+    }
+
+    updateOverallSummary();
+}
+
+function encodeStateToCode() {
+    const payload = { v: 1, ops: state.operations };
+    const json = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(json);
+    let bin = "";
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+}
+
+function decodeCodeToState(code) {
+    const trimmed = String(code ?? "").trim();
+    if (!trimmed) throw new Error("セーブコードが空です。");
+
+    const bin = atob(trimmed);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
+    const payload = JSON.parse(json);
+
+    if (!payload || payload.v !== 1 || !Array.isArray(payload.ops)) {
+        throw new Error("セーブコードの形式が正しくありません。");
+    }
+
+    const ops = payload.ops.map((op) => ({
+        group: Number(op.group),
+        number: Number(op.number),
+        spanBefore: Number(op.spanBefore ?? 0),
+        spanAfter: Number(op.spanAfter ?? 0),
+    }));
+
+    for (const op of ops) {
+        if (
+            !Number.isFinite(op.group) ||
+            !Number.isFinite(op.number) ||
+            !Number.isFinite(op.spanBefore) ||
+            !Number.isFinite(op.spanAfter) ||
+            op.spanBefore < 0 ||
+            op.spanAfter < 0
+        ) {
+            throw new Error("セーブコード内に不正な値があります。");
+        }
+    }
+
+    state.operations = ops;
 }
 
 els.form.addEventListener("submit", (e) => {
@@ -199,40 +370,41 @@ els.form.addEventListener("submit", (e) => {
         return;
     }
 
-    if (!parsed.spanBefore && !parsed.spanAfter) {
-        const prize = checkPrize(parsed.group, parsed.number);
-        const totalWin = prize?.yen ?? 0;
-        const cost = 300;
-        const profit = totalWin - cost;
-        prependItems([
-            { text: formatResult({ groupDigits: parsed.groupDigits, numberDigits: parsed.numberDigits, prize }) },
-            { text: `合計当せん金: ${formatYen(totalWin)} / 購入額: ${formatYen(cost)} / 収支: ${profit >= 0 ? "+" : "-"}${formatYen(Math.abs(profit))}`, className: "summary" },
-        ]);
-        return;
-    }
+    const op = {
+        group: parsed.group,
+        number: parsed.number,
+        spanBefore: parsed.spanBefore,
+        spanAfter: parsed.spanAfter,
+    };
 
-    const min = Math.max(0, parsed.number - parsed.spanBefore);
-    const max = Math.min(999999, parsed.number + parsed.spanAfter);
-    const checkedCount = max - min + 1;
-
-    const items = [];
-    items.push({ text: `${parsed.groupDigits}組 ${parsed.numberDigits}番 の連番チェック（前${parsed.spanBefore} / 後${parsed.spanAfter} / ${checkedCount}枚）`, className: "batch" });
-
-    let hitCount = 0;
-    let totalWin = 0;
-    for (let num = min; num <= max; num += 1) {
-        const prize = checkPrize(parsed.group, num);
-        if (prize) {
-            hitCount += 1;
-            totalWin += prize.yen ?? 0;
-        }
-        items.push({ text: formatResult({ groupDigits: parsed.groupDigits, numberDigits: pad6(num), prize }) });
-    }
-
-    const cost = 300 * checkedCount;
-    const profit = totalWin - cost;
-    items.push({ text: `当たり: ${hitCount}件 / 全${checkedCount}枚`, className: "summary" });
-    items.push({ text: `合計当せん金: ${formatYen(totalWin)} / 購入額: ${formatYen(cost)} / 収支: ${profit >= 0 ? "+" : "-"}${formatYen(Math.abs(profit))}`, className: "summary" });
-
-    prependItems(items);
+    state.operations.push(op);
+    renderOperation(op);
 });
+
+els.exportCode?.addEventListener("click", async () => {
+    try {
+        const code = encodeStateToCode();
+        if (els.saveCode) {
+            els.saveCode.value = code;
+            els.saveCode.focus();
+            els.saveCode.select();
+        }
+        await navigator.clipboard?.writeText(code);
+        setResult("セーブコードを出力しました（クリップボードにコピー済み）。", "summary");
+    } catch (err) {
+        setResult(`セーブコード出力に失敗: ${err?.message ?? String(err)}`);
+    }
+});
+
+els.importCode?.addEventListener("click", () => {
+    try {
+        const code = els.saveCode?.value ?? "";
+        decodeCodeToState(code);
+        rerenderAll();
+        setResult("セーブコードを読み込みました。", "summary");
+    } catch (err) {
+        setResult(`セーブコード読み込みに失敗: ${err?.message ?? String(err)}`);
+    }
+});
+
+updateOverallSummary();
