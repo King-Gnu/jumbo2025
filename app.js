@@ -201,14 +201,9 @@ els.form.addEventListener("submit", (e) => {
     let hitCount = 0;
     for (let num = min; num <= max; num += 1) {
         const prize = checkPrize(parsed.group, num);
-        if (!prize) continue;
-        hitCount += 1;
+        if (prize) hitCount += 1;
         setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: pad6(num), prize }));
     }
 
-    if (hitCount === 0) {
-        setResult("この範囲に当たりはありませんでした。");
-    } else {
-        setResult(`当たり: ${hitCount}件`);
-    }
+    setResult(`当たり: ${hitCount}件 / 全${checkedCount}枚`);
 });
