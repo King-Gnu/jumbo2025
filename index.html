@@ -184,6 +184,40 @@
             border: 1px solid var(--border);
         }
 
+        .btn-small {
+            padding: 9px 10px;
+            font-size: 13px;
+        }
+
+        .ops-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .ops-item {
+            display: grid;
+            grid-template-columns: 20px 1fr;
+            gap: 10px;
+            align-items: start;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.03);
+            font-size: 13px;
+        }
+
+        .ops-item input[type="checkbox"] {
+            margin-top: 2px;
+        }
+
+        .ops-meta {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
         button:active {
             transform: translateY(1px);
         }
@@ -274,6 +308,16 @@
                         <button id="import-code" type="button" class="btn-secondary">読み込み</button>
                     </div>
                     <textarea id="save-code" rows="4" placeholder="ここにセーブコードが表示されます / ここへ貼り付けて読み込み"></textarea>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 8px 0;" />
+
+                    <h2 style="margin: 0; font-size: 14px;">入力履歴</h2>
+                    <p class="hint">チェックして「選択削除」、すべて消すなら「全消去」。</p>
+                    <div class="btn-row">
+                        <button id="delete-selected" type="button" class="btn-secondary btn-small">選択削除</button>
+                        <button id="clear-all" type="button" class="btn-secondary btn-small">全消去</button>
+                    </div>
+                    <div id="ops-list" class="ops-list" aria-label="入力履歴一覧"></div>
                 </form>
             </section>
 

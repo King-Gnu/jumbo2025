@@ -197,6 +197,10 @@ const els = {
     exportCode: document.getElementById("export-code"),
     importCode: document.getElementById("import-code"),
     saveCode: document.getElementById("save-code"),
+
+    opsList: document.getElementById("ops-list"),
+    deleteSelected: document.getElementById("delete-selected"),
+    clearAll: document.getElementById("clear-all"),
 };
 
 const state = {
@@ -211,6 +215,59 @@ const state = {
 
 function setResult(text, extraClassName = "") {
     prependItems([{ text, className: extraClassName }]);
+}
+
+function getCheckedCountForOperation(op) {
+    const min = Math.max(0, op.number - op.spanBefore);
+    const max = Math.min(999999, op.number + op.spanAfter);
+    return max - min + 1;
+}
+
+function renderEmptyResultPlaceholder() {
+    els.result.innerHTML = "";
+    delete els.result.dataset.hasHistory;
+
+    const line = document.createElement("div");
+    line.className = "result-item placeholder";
+    line.textContent = "まだ判定がありません。組と番号を入力して『判定』を押してください。";
+    els.result.appendChild(line);
+}
+
+function renderOperationsList() {
+    if (!els.opsList) return;
+
+    if (!state.operations.length) {
+        els.opsList.innerHTML = `
+            <div class="ops-item" style="grid-template-columns: 1fr;">
+                <div>
+                    <div>履歴はありません</div>
+                    <div class="ops-meta">判定するとここに入力履歴が表示されます。</div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const rows = state.operations
+        .map((op, index) => ({ op, index }))
+        .reverse()
+        .map(({ op, index }) => {
+            const checkedCount = getCheckedCountForOperation(op);
+            const title = `${op.group}組 ${pad6(op.number)}番`;
+            const meta = `前${op.spanBefore} / 後${op.spanAfter}（${checkedCount}枚）`;
+            return `
+                <label class="ops-item">
+                    <input type="checkbox" data-op-index="${index}" />
+                    <div>
+                        <div>${title}</div>
+                        <div class="ops-meta">${meta}</div>
+                    </div>
+                </label>
+            `;
+        })
+        .join("");
+
+    els.opsList.innerHTML = rows;
 }
 
 function updateOverallSummary() {
@@ -306,6 +363,12 @@ function rerenderAll() {
         applyOperationToTotals(op);
     }
 
+    if (!state.operations.length) {
+        renderEmptyResultPlaceholder();
+    }
+
+    renderOperationsList();
+
     updateOverallSummary();
 }
 
@@ -379,6 +442,7 @@ els.form.addEventListener("submit", (e) => {
 
     state.operations.push(op);
     renderOperation(op);
+    renderOperationsList();
 });
 
 els.exportCode?.addEventListener("click", async () => {
@@ -406,5 +470,42 @@ els.importCode?.addEventListener("click", () => {
         setResult(`セーブコード読み込みに失敗: ${err?.message ?? String(err)}`);
     }
 });
+
+els.clearAll?.addEventListener("click", () => {
+    if (!state.operations.length) return;
+
+    const ok = confirm("入力履歴を全消去します。よろしいですか？");
+    if (!ok) return;
+
+    state.operations = [];
+    if (els.saveCode) els.saveCode.value = "";
+    rerenderAll();
+});
+
+els.deleteSelected?.addEventListener("click", () => {
+    if (!state.operations.length) return;
+    if (!els.opsList) return;
+
+    const checked = Array.from(els.opsList.querySelectorAll("input[type='checkbox'][data-op-index]:checked"));
+    if (!checked.length) return;
+
+    const indices = checked
+        .map((el) => Number(el.dataset.opIndex))
+        .filter((n) => Number.isInteger(n) && n >= 0)
+        .sort((a, b) => b - a);
+
+    const ok = confirm(`選択した${indices.length}件を削除します。よろしいですか？`);
+    if (!ok) return;
+
+    for (const idx of indices) {
+        if (idx >= 0 && idx < state.operations.length) {
+            state.operations.splice(idx, 1);
+        }
+    }
+
+    rerenderAll();
+});
+
+renderOperationsList();
 
 updateOverallSummary();
