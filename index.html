@@ -86,6 +86,12 @@
             gap: 12px;
         }
 
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
         label {
             display: block;
             font-size: 13px;
@@ -178,10 +184,20 @@
                             required />
                     </div>
                     <div>
-                        <label for="span">連番チェック（±n）</label>
-                        <input id="span" name="span" inputmode="numeric" autocomplete="off" placeholder="0" value="0"
-                            aria-describedby="span-hint" />
-                        <p class="hint" id="span-hint">例: 10 を入れると、入力した番号の前後10枚（合計21枚）をまとめてチェックします。</p>
+                        <label>連番チェック（前/後）</label>
+                        <div class="row" aria-describedby="span-hint">
+                            <div>
+                                <label for="span-before">前（-n）</label>
+                                <input id="span-before" name="spanBefore" inputmode="numeric" autocomplete="off"
+                                    placeholder="0" value="0" />
+                            </div>
+                            <div>
+                                <label for="span-after">後（+n）</label>
+                                <input id="span-after" name="spanAfter" inputmode="numeric" autocomplete="off"
+                                    placeholder="0" value="0" />
+                            </div>
+                        </div>
+                        <p class="hint" id="span-hint">例: 前=0 / 後=20 なら、入力番号から後ろ20枚をまとめてチェックします。</p>
                     </div>
                     <p class="hint">全角数字や「22組」「146504番」のような入力でもOK（数字だけに自動整形します）。</p>
                     <button type="submit">当落を確認</button>

@@ -38,21 +38,24 @@ function pad6(n) {
     return String(n).padStart(6, "0");
 }
 
-function parseGroupAndNumber({ groupText, numberText, spanText }) {
+function parseGroupAndNumber({ groupText, numberText, spanBeforeText, spanAfterText }) {
     const groupDigits = normalizeDigits(groupText);
     const numberDigits = normalizeDigits(numberText);
-    const spanDigits = normalizeDigits(spanText ?? "0");
+    const spanBeforeDigits = normalizeDigits(spanBeforeText ?? "0");
+    const spanAfterDigits = normalizeDigits(spanAfterText ?? "0");
 
     if (!groupDigits || !numberDigits) {
         return { ok: false, message: "組と番号を入力してください。" };
     }
 
-    const span = spanDigits ? Number.parseInt(spanDigits, 10) : 0;
-    if (!Number.isFinite(span) || span < 0) {
-        return { ok: false, message: "連番チェック（±n）は0以上の数字で入力してください。" };
+    const spanBefore = spanBeforeDigits ? Number.parseInt(spanBeforeDigits, 10) : 0;
+    const spanAfter = spanAfterDigits ? Number.parseInt(spanAfterDigits, 10) : 0;
+
+    if (!Number.isFinite(spanBefore) || spanBefore < 0 || !Number.isFinite(spanAfter) || spanAfter < 0) {
+        return { ok: false, message: "連番チェック（前/後）は0以上の数字で入力してください。" };
     }
-    if (span > 5000) {
-        return { ok: false, message: "連番チェック（±n）は5000以下で入力してください。" };
+    if (spanBefore > 5000 || spanAfter > 5000) {
+        return { ok: false, message: "連番チェック（前/後）はそれぞれ5000以下で入力してください。" };
     }
 
     const group = Number.parseInt(groupDigits, 10);
@@ -74,7 +77,7 @@ function parseGroupAndNumber({ groupText, numberText, spanText }) {
         return { ok: false, message: "番号は000000〜999999の範囲で入力してください。" };
     }
 
-    return { ok: true, group, number, span, groupDigits, numberDigits };
+    return { ok: true, group, number, spanBefore, spanAfter, groupDigits, numberDigits };
 }
 
 function checkPrize(group, number) {
@@ -146,7 +149,8 @@ const els = {
     form: document.getElementById("manual-form"),
     group: document.getElementById("group"),
     number: document.getElementById("number"),
-    span: document.getElementById("span"),
+    spanBefore: document.getElementById("span-before"),
+    spanAfter: document.getElementById("span-after"),
     result: document.getElementById("result"),
 };
 
@@ -173,7 +177,8 @@ els.form.addEventListener("submit", (e) => {
     const parsed = parseGroupAndNumber({
         groupText: els.group.value,
         numberText: els.number.value,
-        spanText: els.span?.value ?? "0",
+        spanBeforeText: els.spanBefore?.value ?? "0",
+        spanAfterText: els.spanAfter?.value ?? "0",
     });
 
     if (!parsed.ok) {
@@ -181,17 +186,17 @@ els.form.addEventListener("submit", (e) => {
         return;
     }
 
-    if (!parsed.span) {
+    if (!parsed.spanBefore && !parsed.spanAfter) {
         const prize = checkPrize(parsed.group, parsed.number);
         setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: parsed.numberDigits, prize }));
         return;
     }
 
-    const min = Math.max(0, parsed.number - parsed.span);
-    const max = Math.min(999999, parsed.number + parsed.span);
+    const min = Math.max(0, parsed.number - parsed.spanBefore);
+    const max = Math.min(999999, parsed.number + parsed.spanAfter);
     const checkedCount = max - min + 1;
 
-    setBatchHeader(`${parsed.groupDigits}組 ${parsed.numberDigits}番 の連番チェック（±${parsed.span} / ${checkedCount}枚）`);
+    setBatchHeader(`${parsed.groupDigits}組 ${parsed.numberDigits}番 の連番チェック（前${parsed.spanBefore} / 後${parsed.spanAfter} / ${checkedCount}枚）`);
 
     let hitCount = 0;
     for (let num = min; num <= max; num += 1) {
