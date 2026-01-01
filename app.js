@@ -34,12 +34,25 @@ function normalizeDigits(value) {
     return halfWidth;
 }
 
-function parseGroupAndNumber({ groupText, numberText }) {
+function pad6(n) {
+    return String(n).padStart(6, "0");
+}
+
+function parseGroupAndNumber({ groupText, numberText, spanText }) {
     const groupDigits = normalizeDigits(groupText);
     const numberDigits = normalizeDigits(numberText);
+    const spanDigits = normalizeDigits(spanText ?? "0");
 
     if (!groupDigits || !numberDigits) {
         return { ok: false, message: "組と番号を入力してください。" };
+    }
+
+    const span = spanDigits ? Number.parseInt(spanDigits, 10) : 0;
+    if (!Number.isFinite(span) || span < 0) {
+        return { ok: false, message: "連番チェック（±n）は0以上の数字で入力してください。" };
+    }
+    if (span > 5000) {
+        return { ok: false, message: "連番チェック（±n）は5000以下で入力してください。" };
     }
 
     const group = Number.parseInt(groupDigits, 10);
@@ -61,7 +74,7 @@ function parseGroupAndNumber({ groupText, numberText }) {
         return { ok: false, message: "番号は000000〜999999の範囲で入力してください。" };
     }
 
-    return { ok: true, group, number, groupDigits, numberDigits };
+    return { ok: true, group, number, span, groupDigits, numberDigits };
 }
 
 function checkPrize(group, number) {
@@ -133,10 +146,11 @@ const els = {
     form: document.getElementById("manual-form"),
     group: document.getElementById("group"),
     number: document.getElementById("number"),
+    span: document.getElementById("span"),
     result: document.getElementById("result"),
 };
 
-function setResult(text) {
+function setResult(text, extraClassName = "") {
     // 「未判定」のプレースホルダーは最初の1回で消し、その後は履歴として追加
     if (els.result.dataset.hasHistory !== "true") {
         els.result.textContent = "";
@@ -144,9 +158,13 @@ function setResult(text) {
     }
 
     const line = document.createElement("div");
-    line.className = "result-item";
+    line.className = extraClassName ? `result-item ${extraClassName}` : "result-item";
     line.textContent = text;
     els.result.appendChild(line);
+}
+
+function setBatchHeader(text) {
+    setResult(text, "batch");
 }
 
 els.form.addEventListener("submit", (e) => {
@@ -155,6 +173,7 @@ els.form.addEventListener("submit", (e) => {
     const parsed = parseGroupAndNumber({
         groupText: els.group.value,
         numberText: els.number.value,
+        spanText: els.span?.value ?? "0",
     });
 
     if (!parsed.ok) {
@@ -162,6 +181,29 @@ els.form.addEventListener("submit", (e) => {
         return;
     }
 
-    const prize = checkPrize(parsed.group, parsed.number);
-    setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: parsed.numberDigits, prize }));
+    if (!parsed.span) {
+        const prize = checkPrize(parsed.group, parsed.number);
+        setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: parsed.numberDigits, prize }));
+        return;
+    }
+
+    const min = Math.max(0, parsed.number - parsed.span);
+    const max = Math.min(999999, parsed.number + parsed.span);
+    const checkedCount = max - min + 1;
+
+    setBatchHeader(`${parsed.groupDigits}組 ${parsed.numberDigits}番 の連番チェック（±${parsed.span} / ${checkedCount}枚）`);
+
+    let hitCount = 0;
+    for (let num = min; num <= max; num += 1) {
+        const prize = checkPrize(parsed.group, num);
+        if (!prize) continue;
+        hitCount += 1;
+        setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: pad6(num), prize }));
+    }
+
+    if (hitCount === 0) {
+        setResult("この範囲に当たりはありませんでした。");
+    } else {
+        setResult(`当たり: ${hitCount}件`);
+    }
 });

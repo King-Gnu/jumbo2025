@@ -144,6 +144,12 @@
             font-size: 14px;
         }
 
+        .result-item.batch {
+            font-weight: 700;
+            background: rgba(37, 99, 235, 0.08);
+            border-color: rgba(37, 99, 235, 0.25);
+        }
+
         .placeholder {
             color: var(--muted);
         }
@@ -163,11 +169,19 @@
                 <form id="manual-form">
                     <div>
                         <label for="group">組（例: 22）</label>
-                        <input id="group" name="group" inputmode="numeric" autocomplete="off" placeholder="22" required />
+                        <input id="group" name="group" inputmode="numeric" autocomplete="off" placeholder="22"
+                            required />
                     </div>
                     <div>
                         <label for="number">番号（例: 146504）</label>
-                        <input id="number" name="number" inputmode="numeric" autocomplete="off" placeholder="146504" required />
+                        <input id="number" name="number" inputmode="numeric" autocomplete="off" placeholder="146504"
+                            required />
+                    </div>
+                    <div>
+                        <label for="span">連番チェック（±n）</label>
+                        <input id="span" name="span" inputmode="numeric" autocomplete="off" placeholder="0" value="0"
+                            aria-describedby="span-hint" />
+                        <p class="hint" id="span-hint">例: 10 を入れると、入力した番号の前後10枚（合計21枚）をまとめてチェックします。</p>
                     </div>
                     <p class="hint">全角数字や「22組」「146504番」のような入力でもOK（数字だけに自動整形します）。</p>
                     <button type="submit">当落を確認</button>
