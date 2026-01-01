@@ -134,17 +134,7 @@ const els = {
     group: document.getElementById("group"),
     number: document.getElementById("number"),
     result: document.getElementById("result"),
-
-    startCamera: document.getElementById("start-camera"),
-    stopCamera: document.getElementById("stop-camera"),
-    captureOcr: document.getElementById("capture-ocr"),
-    video: document.getElementById("video"),
-    canvas: document.getElementById("canvas"),
-    ocrStatus: document.getElementById("ocr-status"),
-    ocrRaw: document.getElementById("ocr-raw"),
 };
-
-let mediaStream = null;
 
 function setResult(text) {
     // 「未判定」のプレースホルダーは最初の1回で消し、その後は履歴として追加
@@ -154,119 +144,9 @@ function setResult(text) {
     }
 
     const line = document.createElement("div");
+    line.className = "result-item";
     line.textContent = text;
     els.result.appendChild(line);
-}
-
-function setOcrStatus(text) {
-    els.ocrStatus.textContent = text;
-}
-
-function assertTesseractAvailable() {
-    if (!window.Tesseract) {
-        throw new Error("Tesseract.js の読み込みに失敗しました（ネットワーク/ブロック等）。");
-    }
-}
-
-function extractFromOcrText(rawText) {
-    const text = String(rawText ?? "")
-        .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
-        .replace(/\s+/g, " ");
-
-    // 例: "22組 146504番" のようなパターンを優先
-    const groupMatch = text.match(/(\d{1,3})\s*組/);
-    const numberMatch = text.match(/(\d{6})\s*番/);
-
-    if (groupMatch && numberMatch) {
-        return { groupText: groupMatch[1], numberText: numberMatch[1] };
-    }
-
-    // フォールバック: 1〜3桁と6桁が近接している場合
-    const nearMatch = text.match(/(\d{1,3})\D{0,10}(\d{6})/);
-    if (nearMatch) {
-        return { groupText: nearMatch[1], numberText: nearMatch[2] };
-    }
-
-    return { groupText: "", numberText: "" };
-}
-
-async function startCamera() {
-    if (mediaStream) return;
-
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-        },
-        audio: false,
-    });
-
-    els.video.srcObject = mediaStream;
-
-    els.startCamera.disabled = true;
-    els.stopCamera.disabled = false;
-    els.captureOcr.disabled = false;
-}
-
-function stopCamera() {
-    if (!mediaStream) return;
-
-    for (const track of mediaStream.getTracks()) {
-        track.stop();
-    }
-
-    mediaStream = null;
-    els.video.srcObject = null;
-
-    els.startCamera.disabled = false;
-    els.stopCamera.disabled = true;
-    els.captureOcr.disabled = true;
-}
-
-async function captureAndOcr() {
-    assertTesseractAvailable();
-
-    if (!mediaStream) {
-        setOcrStatus("先にカメラを開始してください。");
-        return;
-    }
-
-    const video = els.video;
-    const canvas = els.canvas;
-
-    const width = video.videoWidth;
-    const height = video.videoHeight;
-    if (!width || !height) {
-        setOcrStatus("映像の準備中です。少し待って再試行してください。");
-        return;
-    }
-
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0, width, height);
-
-    setOcrStatus("OCR 実行中...");
-    els.ocrRaw.textContent = "";
-
-    const result = await window.Tesseract.recognize(canvas, "jpn+eng", {
-        logger: (m) => {
-            if (m?.status) {
-                const pct = typeof m.progress === "number" ? ` ${(m.progress * 100).toFixed(0)}%` : "";
-                setOcrStatus(`${m.status}${pct}`);
-            }
-        },
-    });
-
-    const raw = result?.data?.text ?? "";
-    els.ocrRaw.textContent = raw;
-
-    const extracted = extractFromOcrText(raw);
-    if (extracted.groupText) els.group.value = extracted.groupText;
-    if (extracted.numberText) els.number.value = extracted.numberText;
-
-    setOcrStatus(extracted.groupText && extracted.numberText ? "読み取り成功（入力欄に反映）" : "読み取り完了（組/番号を抽出できませんでした）");
 }
 
 els.form.addEventListener("submit", (e) => {
@@ -284,30 +164,4 @@ els.form.addEventListener("submit", (e) => {
 
     const prize = checkPrize(parsed.group, parsed.number);
     setResult(formatResult({ groupDigits: parsed.groupDigits, numberDigits: parsed.numberDigits, prize }));
-});
-
-els.startCamera.addEventListener("click", async () => {
-    try {
-        await startCamera();
-        setOcrStatus("カメラ起動完了");
-    } catch (err) {
-        setOcrStatus(`カメラ開始に失敗: ${err?.message ?? String(err)}`);
-    }
-});
-
-els.stopCamera.addEventListener("click", () => {
-    stopCamera();
-    setOcrStatus("停止しました");
-});
-
-els.captureOcr.addEventListener("click", async () => {
-    try {
-        await captureAndOcr();
-    } catch (err) {
-        setOcrStatus(`OCRに失敗: ${err?.message ?? String(err)}`);
-    }
-});
-
-window.addEventListener("beforeunload", () => {
-    stopCamera();
 });

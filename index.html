@@ -5,58 +5,184 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>年末ジャンボ 当落チェッカー</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #0b1020;
+            --card: rgba(255, 255, 255, 0.92);
+            --text: #0f172a;
+            --muted: #475569;
+            --border: rgba(15, 23, 42, 0.14);
+            --focus: rgba(59, 130, 246, 0.35);
+            --accent: #2563eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+            color: white;
+            background:
+                radial-gradient(900px 400px at 20% 10%, rgba(37, 99, 235, 0.35), transparent 60%),
+                radial-gradient(700px 420px at 80% 30%, rgba(99, 102, 241, 0.28), transparent 55%),
+                radial-gradient(900px 520px at 50% 95%, rgba(16, 185, 129, 0.14), transparent 60%),
+                var(--bg);
+        }
+
+        main {
+            width: min(860px, calc(100% - 32px));
+            margin: 32px auto 64px;
+        }
+
+        header {
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(24px, 4vw, 34px);
+            letter-spacing: 0.02em;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.78);
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        @media (min-width: 760px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+                align-items: start;
+            }
+        }
+
+        section {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            font-size: 16px;
+        }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-size: 16px;
+            outline: none;
+            background: white;
+        }
+
+        input:focus {
+            border-color: rgba(37, 99, 235, 0.55);
+            box-shadow: 0 0 0 4px var(--focus);
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        button {
+            width: 100%;
+            padding: 11px 12px;
+            border: 0;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            color: white;
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        #result {
+            display: grid;
+            gap: 8px;
+        }
+
+        .result-item {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.03);
+            font-size: 14px;
+        }
+
+        .placeholder {
+            color: var(--muted);
+        }
+    </style>
 </head>
 
 <body>
     <main>
-        <h1>年末ジャンボ 当落チェッカー</h1>
+        <header>
+            <h1>年末ジャンボ 当落チェッカー</h1>
+            <p class="subtitle">組（1〜999）と番号（6桁）を入力して当落を確認します。結果は下に履歴として追加されます。</p>
+        </header>
 
-        <section aria-label="入力">
-            <h2>手入力</h2>
-            <form id="manual-form">
-                <div>
-                    <label for="group">組（例: 22）</label>
-                    <input id="group" name="group" inputmode="numeric" autocomplete="off" placeholder="22" required />
+        <div class="grid">
+            <section aria-label="入力">
+                <h2>手入力</h2>
+                <form id="manual-form">
+                    <div>
+                        <label for="group">組（例: 22）</label>
+                        <input id="group" name="group" inputmode="numeric" autocomplete="off" placeholder="22" required />
+                    </div>
+                    <div>
+                        <label for="number">番号（例: 146504）</label>
+                        <input id="number" name="number" inputmode="numeric" autocomplete="off" placeholder="146504" required />
+                    </div>
+                    <p class="hint">全角数字や「22組」「146504番」のような入力でもOK（数字だけに自動整形します）。</p>
+                    <button type="submit">当落を確認</button>
+                </form>
+            </section>
+
+            <section aria-label="結果">
+                <h2>判定結果</h2>
+                <div id="result" role="status" aria-live="polite">
+                    <div class="result-item placeholder">未判定</div>
                 </div>
-                <div>
-                    <label for="number">番号（例: 146504）</label>
-                    <input id="number" name="number" inputmode="numeric" autocomplete="off" placeholder="146504"
-                        required />
-                </div>
-                <button type="submit">当落を確認</button>
-            </form>
-        </section>
-
-        <section aria-label="カメラ入力">
-            <h2>カメラから入力（OCR）</h2>
-            <p>ブラウザのカメラ許可が必要です。明るい場所で「○○組」「□□□□□□番」が写るようにしてください。</p>
-
-            <div>
-                <button id="start-camera" type="button">カメラ開始</button>
-                <button id="capture-ocr" type="button" disabled>撮影して読み取り</button>
-                <button id="stop-camera" type="button" disabled>カメラ停止</button>
-            </div>
-
-            <video id="video" playsinline autoplay muted
-                style="max-width: 100%; width: 520px; background: #000;"></video>
-            <canvas id="canvas" hidden></canvas>
-
-            <div>
-                <div><strong>OCR状態:</strong> <span id="ocr-status">未実行</span></div>
-                <details>
-                    <summary>OCR生テキスト</summary>
-                    <pre id="ocr-raw" style="white-space: pre-wrap;"></pre>
-                </details>
-            </div>
-        </section>
-
-        <section aria-label="結果">
-            <h2>判定結果</h2>
-            <div id="result" role="status" aria-live="polite">未判定</div>
-        </section>
+            </section>
+        </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script type="module" src="./app.js"></script>
 </body>
 
